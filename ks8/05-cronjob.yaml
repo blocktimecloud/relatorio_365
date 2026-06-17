@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: office365-reports
+  namespace: office365
+spec:
+  schedule: "0 12 26 * *"   # dia 26, 09:00 BRT (12:00 UTC)
+  concurrencyPolicy: Forbid  # não roda duas vezes em paralelo
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1   # se falhar, tenta no máx. 1 vez
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: reports
+              image: blocktimecloud/relatorio_office_365:latest
+              imagePullPolicy: Always
+              command: ["python", "src/main.py"]
+              envFrom:
+                - secretRef:
+                    name: office365-secrets
+          # opcional: se quiser arquivar PDFs no NFS, descomente abaixo
+              volumeMounts:
+                - name: reports-out
+                  mountPath: /app/reports
+              volumes:
+              - name: reports-out
+                persistentVolumeClaim:
+                  claimName: reports-data

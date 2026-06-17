@@ -1,0 +1,48 @@
+# ═══════════════════════════════════════════════════════════════
+# .dockerignore — o que NÃO entra na imagem Docker
+# ═══════════════════════════════════════════════════════════════
+
+# Segredos — NUNCA na imagem (vêm do Secret do Kubernetes em runtime)
+.env
+.env.*
+!.env.example
+customers.json
+
+# Ambientes virtuais (a imagem monta o seu próprio venv)
+office365/
+.venv/
+venv/
+ENV/
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Saídas locais (relatórios e logs gerados em dev)
+reports/
+output/
+logs/
+*.pdf
+
+# Git e controle de versão
+.git/
+.gitignore
+
+# Configs de IDE / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker (não precisa copiar pra dentro da própria imagem)
+docker/
+Dockerfile
+.dockerignore
+
+# Documentação que não afeta runtime
+*.md
+!README.md
