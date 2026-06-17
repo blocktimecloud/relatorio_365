@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: office365_reports
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: app123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql          # ← volume Docker nativo (sem bind mount)
+      - ./mysql/conf.d:/etc/mysql/conf.d   # ← conf.d pode ficar no Windows, sem problema
+    networks:
+      - backend
+
+volumes:
+  mysql_data:                              # ← declaração do volume gerenciado pelo Docker
+
+networks:
+  backend:
+    driver: bridge
