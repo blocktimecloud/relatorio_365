@@ -1,26 +1,22 @@
 # ═══════════════════════════════════════════════════════════════
 # Dockerfile — Blocktime Office 365 Reports
-# Python 3.13 + Poetry + WeasyPrint (Pango/Cairo)
+# Python 3.13 + WeasyPrint (Pango/Cairo)
+# Usa requirements.txt (não depende do poetry.lock)
 # ═══════════════════════════════════════════════════════════════
 
 # ---------- Stage 1: builder (instala dependências) ----------
 FROM python:3.13-slim AS builder
 
-# Poetry exporta as deps para um requirements; instalamos num venv isolado
-ENV POETRY_VERSION=2.0.1 \
-    PIP_NO_CACHE_DIR=1 \
+ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
-
-RUN pip install "poetry==${POETRY_VERSION}" poetry-plugin-export
 
 WORKDIR /app
 
-# Copia só os arquivos de dependência primeiro (melhora cache de build)
-COPY pyproject.toml poetry.lock ./
+# Copia só o requirements primeiro (melhora cache de build)
+COPY requirements.txt ./
 
-# Exporta as dependências para requirements.txt (sem as dev) e instala num venv
-RUN poetry export --without-hashes --format=requirements.txt --output=requirements.txt \
-    && python -m venv /opt/venv \
+# Instala as dependências num venv isolado
+RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
 

@@ -1,0 +1,19 @@
+# ═══════════════════════════════════════════════════════════════
+# requirements.txt — Blocktime Office 365 Reports
+# Gerado a partir do pyproject.toml (fonte da verdade das deps).
+# Para regenerar com versões 100% travadas, use no projeto:
+#   poetry lock && poetry export -f requirements.txt --without-hashes -o requirements.txt
+# ═══════════════════════════════════════════════════════════════
+
+# ---- Dependências diretas (declaradas no pyproject.toml) ----
+fastapi>=0.136.3,<0.137.0
+sqlalchemy>=2.0.50,<3.0.0
+jinja2>=3.1.6,<4.0.0
+weasyprint>=69.0,<70.0
+pydantic>=2.13.4,<3.0.0
+pydantic-settings>=2.14.1,<3.0.0
+httpx>=0.28.1,<0.29.0
+pymysql>=1.2.0,<2.0.0
+cryptography>=48.0.0,<49.0.0
+questionary>=2.1.1,<3.0.0
+alembic>=1.18.4,<2.0.0
