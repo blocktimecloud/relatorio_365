@@ -290,6 +290,89 @@ def cmd_delete(args):
 
     svc.delete(args.id)
     print(f"\n✅ Cliente '{customer.name}' removido.")
+
+
+def cmd_import(args):
+    from customer.customer_import import (
+        ler_planilha,
+        validar_colunas,
+        importar_clientes,
+        TODAS_AS_COLUNAS,
+        COLUNAS_OBRIGATORIAS,
+    )
+
+    print("\n── Importar clientes de planilha ───────────────────\n")
+
+    # 1. lê a planilha
+    try:
+        registros = ler_planilha(args.arquivo)
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
+    except ImportError as e:
+        print(f"❌ {e}")
+        sys.exit(1)
+
+    if not registros:
+        print("❌ A planilha está vazia ou só tem o cabeçalho.")
+        sys.exit(1)
+
+    # 2. valida o cabeçalho
+    faltando = validar_colunas(registros)
+    if faltando:
+        print(f"❌ Colunas obrigatórias ausentes no cabeçalho: {', '.join(faltando)}")
+        print(f"\n  Colunas obrigatórias: {', '.join(COLUNAS_OBRIGATORIAS)}")
+        print(f"  Cabeçalho completo  : {', '.join(TODAS_AS_COLUNAS)}")
+        sys.exit(1)
+
+    # 3. confirma antes de gravar
+    print(f"  Linhas encontradas na planilha: {len(registros)}")
+    if not args.yes:
+        if not _confirm(f"Importar {len(registros)} cliente(s)?"):
+            print("Cancelado.")
+            return
+
+    # 4. importa
+    db = next(get_db())
+    resultado = importar_clientes(db, registros)
+
+    # 5. relatório final
+    print(resultado.resumo())
+    # código de saída != 0 se houve qualquer erro, útil para automação
+    if resultado.erros and resultado.criados == 0:
+        sys.exit(1)
+
+
+def cmd_import_modelo(args):
+    """Gera um arquivo CSV modelo com o cabeçalho correto."""
+    from customer.customer_import import TODAS_AS_COLUNAS
+    import csv
+
+    destino = args.saida or "modelo_clientes.csv"
+    exemplo = {
+        "razao_social":    "EMPRESA EXEMPLO LTDA",
+        "name":            "Empresa Exemplo",
+        "cnpj":            "00.000.000/0001-91",
+        "tenant_id":       "00000000-0000-0000-0000-000000000000",
+        "client_id":       "00000000-0000-0000-0000-000000000000",
+        "client_secret":   "seu-client-secret-aqui",
+        "contact_email":   "contato@exemplo.com.br",
+        "recipient_name":  "Destinatário Exemplo",
+        "recipient_email": "relatorios@exemplo.com.br",
+    }
+    with open(destino, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=TODAS_AS_COLUNAS)
+        writer.writeheader()
+        writer.writerow(exemplo)
+
+    print(f"✅ Modelo gerado em: {destino}")
+    print("   Preencha uma linha por cliente e importe com:")
+    print(f"   python -m src.cli import {destino}")
+
+
 # ── Parser ───────────────────────────────────────────────────────────────
 
 def build_parser() -> argparse.ArgumentParser:
@@ -316,6 +399,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_del.add_argument("id")
     p_del.add_argument("--force", action="store_true")
 
+    p_imp = sub.add_parser("import", help="Importar clientes de planilha (CSV/XLSX)")
+    p_imp.add_argument("arquivo", help="Caminho da planilha .csv ou .xlsx")
+    p_imp.add_argument("--yes", "-y", action="store_true",
+                       help="Não pedir confirmação antes de importar")
+
+    p_mod = sub.add_parser("import-modelo",
+                           help="Gerar planilha modelo (CSV) para importação")
+    p_mod.add_argument("--saida", "-o", help="Caminho do arquivo a gerar "
+                                             "(padrão: modelo_clientes.csv)")
+
     return parser
 
 
@@ -333,6 +426,8 @@ def main():
         "get":     cmd_get,
         "update":  cmd_update,
         "delete":  cmd_delete,
+        "import":  cmd_import,
+        "import-modelo": cmd_import_modelo,
     }
     handlers[args.command](args)
 
