@@ -18,6 +18,36 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Criar arquivo .env
+        run: |
+          cat > .env << EOF
+          APP_NAME=Office365 Reports
+          ENVIRONMENT=development
+          LOG_LEVEL=INFO
+          STORAGE_PROVIDER=local
+
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_PORT=${{ secrets.DB_PORT }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          DB_USER=${{ secrets.DB_USER }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+
+          SMTP_HOST=${{ secrets.SMTP_HOST }}
+          SMTP_PORT=${{ secrets.SMTP_PORT }}
+          SMTP_USER=${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD=${{ secrets.SMTP_PASSWORD }}
+          SMTP_SENDER_NAME=Blocktime Relatórios Office365
+          SMTP_USE_TLS=true
+          SMTP_SENDER_EMAIL=${{ secrets.SMTP_SENDER_EMAIL }}
+          SMTP_SEND_ENABLED=false
+
+          MAESTRO_ENABLED=false
+          MAESTRO_LICENCA_URL=${{ secrets.MAESTRO_LICENCA_URL }}
+          MAESTRO_LICENCA_TOKEN=${{ secrets.MAESTRO_LICENCA_TOKEN }}
+          MAESTRO_ADMIN_EMAIL=${{ secrets.MAESTRO_ADMIN_EMAIL }}
+          EOF
 
       - name: Build da imagem
         run: |
