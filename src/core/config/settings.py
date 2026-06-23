@@ -1,5 +1,6 @@
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+from urllib.parse import quote_plus
 
 
 class Settings(BaseSettings):
@@ -46,14 +47,22 @@ class Settings(BaseSettings):
             raise ValueError(f"environment deve ser um de: {allowed}")
         return v
 
+#    @property
+#    def database_url(self) -> str:
+#        return (
+#            f"mysql+pymysql://{self.db_user}:{self.db_password}"
+#            f"@{self.db_host}:{self.db_port}/{self.db_name}"
+#            f"?charset=utf8mb4"
+#        )
     @property
     def database_url(self) -> str:
+        password = quote_plus(self.db_password)
+
         return (
-            f"mysql+pymysql://{self.db_user}:{self.db_password}"
+            f"mysql+pymysql://{self.db_user}:{password}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}"
             f"?charset=utf8mb4"
-        )
-
+    )
     @property
     def is_development(self) -> bool:
         return self.environment == "development"
