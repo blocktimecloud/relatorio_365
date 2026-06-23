@@ -3,7 +3,7 @@
 # ═══════════════════════════════════════════════════════════════
 
 # Segredos — NUNCA na imagem (vêm do Secret do Kubernetes em runtime)
-.env
+
 .env.*
 !.env.example
 customers.json
