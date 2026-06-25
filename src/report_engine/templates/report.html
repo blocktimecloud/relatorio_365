@@ -237,6 +237,8 @@
 {% set fwd_total  = forwarding | length %}
 {% set fwd_ativos = forwarding | selectattr("forwardingSmtpAddress") | list | length %}
 
+{% set sp_used  = sharepoint_storage | sum(attribute='used_gb') | round(2) %}
+{% set sp_total = sharepoint_storage | sum(attribute='total_gb') | round(2) %}
 {% if sp_used >= 1024 %}
     {% set sp_used_fmt = "%.2f TB"|format(sp_used / 1024) %}
 {% else %}
@@ -248,6 +250,13 @@
 {% else %}
     {% set sp_total_fmt = "%.2f GB"|format(sp_total) %}
 {% endif %}
+
+{% if sp_total > 0 %}
+    {% set sp_pct_real = ((sp_used / sp_total) * 100) | round(2) %}
+{% else %}
+    {% set sp_pct_real = 0 %}
+{% endif %}
+
 
 {# Score ponderado #}
 {% set s_mfa = mfa_pct %}
