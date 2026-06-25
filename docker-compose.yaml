@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  office365-reports:
+    image: blocktimecloud/office365:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    volumes:
+      - /opt/office365-reports/relatorios:/app/reports
+
+    command:
+      - sleep
+      - infinity
+
+    deploy:
+      replicas: 1
+
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 3
+
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+
+      rollback_config:
+        parallelism: 1
+        delay: 10s
+
+      placement:
+        constraints:
+          - node.role == manager
+
+networks:
+  default:
+    driver: overlay
+    attachable: true
