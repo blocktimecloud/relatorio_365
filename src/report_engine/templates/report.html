@@ -240,15 +240,15 @@
 {% set sp_used  = sharepoint_storage | sum(attribute='used_gb') | round(2) %}
 {% set sp_total = sharepoint_storage | sum(attribute='total_gb') | round(2) %}
 {% if sp_used >= 1024 %}
-    {% set sp_used_fmt = "%.2f TB"|format(sp_used / 1024) %}
+    {% set sp_used_fmt = "%.0f TB"|format(sp_used / 1024) %}
 {% else %}
-    {% set sp_used_fmt = "%.2f GB"|format(sp_used) %}
+    {% set sp_used_fmt = "%.0f GB"|format(sp_used) %}
 {% endif %}
 
 {% if sp_total >= 1024 %}
-    {% set sp_total_fmt = "%.2f TB"|format(sp_total / 1024) %}
+    {% set sp_total_fmt = "%.0f TB"|format(sp_total / 1024) %}
 {% else %}
-    {% set sp_total_fmt = "%.2f GB"|format(sp_total) %}
+    {% set sp_total_fmt = "%.0f GB"|format(sp_total) %}
 {% endif %}
 
 {% if sp_total > 0 %}
@@ -795,7 +795,7 @@
 <hr class="divider">
 <p style="font-size:8.5pt; font-weight:bold; margin: 6px 0;">
   Armazenamento total utilizado:
-  {{ "%.2f GB" | format(sharepoint_storage | sum(attribute='used_gb')) }}
+  {{ "%.0f GB" | format(sharepoint_storage | sum(attribute='used_gb')) }}
 </p>
 <table>
   <thead><tr><th>Title</th><th>URL</th><th>UsageCurrent</th></tr></thead>
