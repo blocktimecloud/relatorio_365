@@ -41,7 +41,7 @@ jobs:
           SMTP_SENDER_NAME=Blocktime Relatórios Office365
           SMTP_USE_TLS=True
           SMTP_SENDER_EMAIL=${{ secrets.SMTP_SENDER_EMAIL }}
-          SMTP_SEND_ENABLED=False
+          SMTP_SEND_ENABLED=True
 
           MAESTRO_ENABLED=False
           MAESTRO_LICENCA_URL=${{ secrets.MAESTRO_LICENCA_URL }}
