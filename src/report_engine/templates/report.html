@@ -253,8 +253,10 @@
 
 {% if sp_total > 0 %}
     {% set sp_pct_real = ((sp_used / sp_total) * 100) | round(2) %}
+    {% set sp_pct = sp_pct_real | round(0) | int %}
 {% else %}
     {% set sp_pct_real = 0 %}
+    {% set sp_pct = 0 %}
 {% endif %}
 
 
