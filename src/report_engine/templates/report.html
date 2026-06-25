@@ -240,15 +240,15 @@
 {% set sp_used  = sharepoint_storage | sum(attribute='used_gb') | round(2) %}
 {% set sp_total = sharepoint_storage | sum(attribute='total_gb') | round(2) %}
 {% if sp_used >= 1024 %}
-    {% set sp_used_fmt = "%.0f TB"|format(sp_used / 1024) %}
+    {% set sp_used_fmt = "%.1f TB"|format(sp_used / 1024) %}
 {% else %}
-    {% set sp_used_fmt = "%.0f GB"|format(sp_used) %}
+    {% set sp_used_fmt = "%.1f GB"|format(sp_used) %}
 {% endif %}
 
 {% if sp_total >= 1024 %}
-    {% set sp_total_fmt = "%.0f TB"|format(sp_total / 1024) %}
+    {% set sp_total_fmt = "%.1f TB"|format(sp_total / 1024) %}
 {% else %}
-    {% set sp_total_fmt = "%.0f GB"|format(sp_total) %}
+    {% set sp_total_fmt = "%.1f GB"|format(sp_total) %}
 {% endif %}
 
 {% if sp_total > 0 %}
