@@ -238,7 +238,7 @@
 {% set fwd_ativos = forwarding | selectattr("forwardingSmtpAddress") | list | length %}
 
 {% set sp_used  = sharepoint_storage | sum(attribute='used_gb') | round(2) %}
-{% set sp_total = sharepoint_storage | sum(attribute='total_gb') | round(2) %}
+{% set sp_total = (sharepoint_storage | map(attribute='total_gb') | max | round(2)) if sharepoint_storage else 0 %}
 {% if sp_used >= 1024 %}
     {% set sp_used_fmt = "%.1f TB"|format(sp_used / 1024) %}
 {% else %}

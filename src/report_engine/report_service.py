@@ -1,7 +1,6 @@
 import re
 from pathlib import Path
 from datetime import datetime, timezone
-
 from customer.models import Customer
 from integrations.graph.client import GraphClient
 from integrations.smtp import SmtpService
