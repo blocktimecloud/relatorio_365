@@ -58,4 +58,4 @@ RUN useradd --create-home --uid 1000 appuser \
 
 USER appuser
 
-CMD ["python", "src/main.py"]
+CMD ["sleep", "infinity"]
