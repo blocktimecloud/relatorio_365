@@ -36,6 +36,7 @@ COLUNAS_OBRIGATORIAS = [
     "tenant_id",
     "client_id",
     "client_secret",
+    "sharepoint_name",  # ex: 'duco' para duco.sharepoint.com
 ]
 
 COLUNAS_OPCIONAIS = [
@@ -225,6 +226,7 @@ def importar_clientes(db: Session, registros: list[dict]) -> ResultadoImportacao
                 contact_email=registro.get("contact_email") or None,
                 recipient_name=registro.get("recipient_name") or None,
                 recipient_email=registro.get("recipient_email") or None,
+                sharepoint_name=registro["sharepoint_name"],
             )
             resultado.criados += 1
             logger.info(f"Importação: cliente criado '{registro['name']}' (linha {indice})")

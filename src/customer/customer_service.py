@@ -27,6 +27,7 @@ class CustomerService:
         contact_email:   str | None = None,
         recipient_email: str | None = None,
         recipient_name:  str | None = None,
+        sharepoint_name: str | None = None,
     ) -> Customer:
         customer = Customer(
             id=str(uuid.uuid4()),
@@ -38,6 +39,7 @@ class CustomerService:
             created_at=datetime.now(timezone.utc),
             recipient_email=recipient_email.strip() if recipient_email else None,
             recipient_name=recipient_name.strip()  if recipient_name  else None,
+            sharepoint_name=sharepoint_name.strip() if sharepoint_name else None,
             credentials=CustomerCredentials(
                 tenant_id=tenant_id.strip(),
                 client_id=client_id.strip(),
@@ -47,6 +49,36 @@ class CustomerService:
         self._repo.add(customer)
         logger.info(f"Cliente criado: {customer.name} (id={customer.id})")
         return customer
+
+    # ── Certificado SharePoint ───────────────────────────────────────────
+
+    def gerar_e_salvar_certificado(self, customer_id: str):
+        """
+        Gera um novo certificado para o cliente, salva no banco (.pfx cifrado +
+        metadados) e retorna o resultado para o CLI exibir/exportar o .cer.
+
+        Usado tanto no cadastro quanto na renovação.
+        """
+        from core import cert_manager
+
+        # nome do certificado: identifica o cliente no Azure
+        customer = self._repo.get(customer_id)
+        common_name = f"blocktime-office365-{customer.id}"
+
+        resultado = cert_manager.gerar_certificado(common_name)
+
+        self._repo.salvar_certificado(
+            customer_id=customer_id,
+            cert_pfx=resultado.pfx_b64_cifrado,
+            cert_thumbprint=resultado.thumbprint,
+            cert_x5t=resultado.x5t,
+            cert_not_after=resultado.not_after.replace(tzinfo=None),
+        )
+        logger.info(
+            f"Certificado gerado para {customer.name} "
+            f"(thumbprint={resultado.thumbprint}, expira={resultado.not_after:%d/%m/%Y})"
+        )
+        return resultado
 
     # ── Leitura ──────────────────────────────────────────────────────────
 

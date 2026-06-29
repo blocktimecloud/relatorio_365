@@ -95,6 +95,34 @@ def cmd_migrate(_args):
     print("✅ Tabelas criadas/verificadas no banco de dados.")
 
 
+def _gerar_certificado_e_instruir(svc, customer):
+    """
+    Gera o certificado do cliente, exporta o .cer e mostra as instruções
+    para subir no Azure. Usado no cadastro e na importação.
+    Não interrompe o fluxo se a geração falhar — o cliente já existe.
+    """
+    from core import cert_manager
+    try:
+        resultado = svc.gerar_e_salvar_certificado(customer.id)
+        caminho = cert_manager.exportar_cer(
+            resultado.cer_pem,
+            nome_base=f"{customer.name}_{customer.id[:8]}",
+        )
+        print("\n── Certificado SharePoint gerado ───────────────────")
+        print(f"  Arquivo .cer : {caminho}")
+        print(f"  Thumbprint   : {resultado.thumbprint}")
+        print(f"  Validade até : {resultado.not_after:%d/%m/%Y}")
+        print("\n  ⚠️  AÇÃO NECESSÁRIA no Azure (App Registration deste cliente):")
+        print("     1. Certificates & secrets → Certificates → Upload")
+        print(f"        suba o arquivo: {caminho}")
+        print("     2. API permissions → adicione SharePoint → Sites.FullControl.All")
+        print("     3. Conceda o consentimento de admin")
+        print("     Sem isso, a leitura da cota do SharePoint não funcionará.\n")
+    except Exception as e:
+        print(f"\n⚠️  Cliente criado, mas falhou ao gerar o certificado: {e}")
+        print(f"   Você pode gerar depois com: python -m src.cli cert-generate {customer.id}\n")
+
+
 def cmd_add(_args):
     print("\n── Cadastrar novo cliente ──────────────────────────\n")
 
@@ -113,6 +141,11 @@ def cmd_add(_args):
 
     if not all([tenant_id, client_id, secret]):
         print("❌ Tenant ID, Client ID e Client Secret são obrigatórios.")
+        sys.exit(1)
+
+    sharepoint_name = _ask("Nome do SharePoint (ex: 'duco' para duco.sharepoint.com):")
+    if not sharepoint_name:
+        print("❌ Nome do SharePoint é obrigatório.")
         sys.exit(1)
 
     print("\n── Destinatário do relatório ───────────────────────\n")
@@ -138,9 +171,11 @@ def cmd_add(_args):
             contact_email=email,
             recipient_name=recipient_name,
             recipient_email=recipient_email,
+            sharepoint_name=sharepoint_name,
         )
         print("\n✅ Cliente criado com sucesso!")
         _print_customer(customer)
+        _gerar_certificado_e_instruir(svc, customer)
     except CustomerAlreadyExistsException as e:
         print(f"\n❌ {e}")
         sys.exit(1)
@@ -290,8 +325,6 @@ def cmd_delete(args):
 
     svc.delete(args.id)
     print(f"\n✅ Cliente '{customer.name}' removido.")
-
-
 def cmd_import(args):
     from customer.customer_import import (
         ler_planilha,

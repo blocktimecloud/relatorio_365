@@ -27,3 +27,10 @@ class Customer:
     active:        bool       = True
     recipient_email: str | None = None
     recipient_name:  str | None = None
+    sharepoint_name: str | None = None  # ex: 'duco' → duco.sharepoint.com
+
+    # Certificado para autenticação app-only no SharePoint (cifrado no banco)
+    cert_pfx:        str | None = None  # .pfx cifrado (Fernet, base64)
+    cert_thumbprint: str | None = None  # SHA-1 hex maiúsculo (Azure)
+    cert_x5t:        str | None = None  # base64url (header do JWT)
+    cert_not_after:  datetime | None = None  # expiração (UTC)

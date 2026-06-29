@@ -9,6 +9,8 @@ from collectors.licenses.collector import LicensesCollector
 from collectors.groups.collector import GroupsCollector
 from collectors.mail_forwarding.collector import MailForwardingCollector
 from collectors.sharepoint.collector import SharePointCollector
+from collectors.sharepoint.quota_collector import SharePointQuotaCollector
+from core.exceptions.sharepoint import SharePointAPIException
 from report_engine.engine import ReportEngine
 from core.config.settings import settings
 from core.logging.logger import logger
@@ -68,6 +70,18 @@ class ReportService:
                 "sku_names":          licenses_collector.collect_sku_names(),
                 "licencas_vencendo":  licenses_collector.collect_expiring_licenses(),
             }
+
+            # Cota real do tenant (via certificado, fora da Graph API).
+            # Não pode derrubar o relatório inteiro se falhar — o cliente
+            # pode ainda não ter certificado, ou a permissão Sites.FullControl.All
+            # pode não estar consentida ainda.
+            try:
+                context["sharepoint_quota"] = SharePointQuotaCollector(customer).collect()
+            except SharePointAPIException as exc:
+                logger.warning(
+                    f"{customer.name}: cota real do tenant indisponível ({exc})"
+                )
+                context["sharepoint_quota"] = {"disponivel": False}
         finally:
             graph.close()
 

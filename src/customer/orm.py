@@ -34,6 +34,17 @@ class CustomerModel(Base):
     recipient_email = Column(String(255), nullable=True)
     recipient_name  = Column(String(255), nullable=True)
 
+    # Nome do tenant no SharePoint (ex: 'duco' → duco.sharepoint.com)
+    sharepoint_name = Column(String(128), nullable=True)
+
+    # ── Certificado para autenticação app-only no SharePoint ─────────────
+    # O .pfx é guardado cifrado (Fernet, base64). As demais colunas são
+    # metadados usados na autenticação (x5t) e na renovação (not_after).
+    cert_pfx        = Column(Text,        nullable=True)  # .pfx cifrado
+    cert_thumbprint = Column(String(64),  nullable=True)  # SHA-1 hex (Azure)
+    cert_x5t        = Column(String(64),  nullable=True)  # base64url (JWT)
+    cert_not_after  = Column(DateTime,    nullable=True)  # expiração
+
     # ── Conversão ORM → domínio ──────────────────────────────────────────
     def to_domain(self):
         from customer.models import Customer, CustomerCredentials
@@ -47,6 +58,11 @@ class CustomerModel(Base):
             created_at=self.created_at.replace(tzinfo=timezone.utc),
             recipient_email=self.recipient_email,
             recipient_name=self.recipient_name,
+            sharepoint_name=self.sharepoint_name,
+            cert_pfx=self.cert_pfx,
+            cert_thumbprint=self.cert_thumbprint,
+            cert_x5t=self.cert_x5t,
+            cert_not_after=self.cert_not_after.replace(tzinfo=timezone.utc) if self.cert_not_after else None,
             credentials=CustomerCredentials(
                 tenant_id=self.tenant_id,
                 client_id=self.client_id,
@@ -70,4 +86,5 @@ class CustomerModel(Base):
             client_secret=encrypt(customer.credentials.client_secret),
             recipient_email=customer.recipient_email,
             recipient_name=customer.recipient_name,
+            sharepoint_name=customer.sharepoint_name,
         )
