@@ -69,10 +69,10 @@ class CustomerService:
 
         self._repo.salvar_certificado(
             customer_id=customer_id,
-            cert_pfx=resultado.pfx_b64_cifrado,
+            cert_pfx=resultado.pfx_cifrado,
             cert_thumbprint=resultado.thumbprint,
             cert_x5t=resultado.x5t,
-            cert_not_after=resultado.not_after.replace(tzinfo=None),
+            cert_not_after=resultado.not_after,
         )
         logger.info(
             f"Certificado gerado para {customer.name} "

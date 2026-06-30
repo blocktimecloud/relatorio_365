@@ -76,6 +76,15 @@ FREE_SKUS = {
     "WINDOWS_STORE",
     "INTUNE_FREE",
     "VIVA_LEARNING_SEEDED",
+    # Identificados em produção (Total absurdamente alto: 10.000 a 1.000.000
+    # unidades — característica de SKU gratuita/seeded pelo tenant, não
+    # licença comprada). Sem isso, inflavam o "Total contratado" do
+    # dashboard para a casa do milhão.
+    "FORMS_PRO",                  # Microsoft Forms (Pro) — gratuita, seeded
+    "DYN365_ENTERPRISE_P1_IW",    # Dynamics 365 P1 (Information Worker) — gratuita, seeded
+    "POWERAPPS_PER_APP_IW",       # variações "_IW" (Information Worker) são sempre seeded/gratuitas
+    "POWER_PAGES_VTRIAL_FOR_MAKERS",  # trial — não é licença contratada
+    "RMSBASIC",                   # Rights Management Basic — vem grátis com qualquer assinatura
 }
 
 # Free conhecidos por skuId (GUID) — para os que não vêm em subscribedSkus
@@ -83,6 +92,13 @@ FREE_SKU_IDS = {
     "f30db892-07e9-47e9-837c-80727f46fd3d",  # FLOW_FREE (Power Automate Free)
     "a403ebcc-fae0-4ca2-8c8c-7a907fd6c235",  # POWER_BI_STANDARD (Power BI free)
 }
+
+# Acima deste número de unidades contratadas, tratamos como SKU
+# seeded/gratuita mesmo que o skuPartNumber não esteja em FREE_SKUS — a
+# Microsoft cria/renomeia esses SKUs com frequência, e nenhum tenant real
+# compra 1.000+ licenças de um produto enquanto usa só um punhado.
+# Funciona como rede de segurança complementar à blocklist por nome.
+LIMITE_VOLUME_SEEDED = 1000
 
 GRAPH_BETA_URL = "https://graph.microsoft.com/beta"
 
@@ -97,6 +113,19 @@ class LicensesCollector(BaseCollector):
         super().__init__(*args, **kwargs)
         self._sku_index_cache = None  # cache do índice de SKUs do tenant
 
+    @staticmethod
+    def _is_free_or_seeded(part_number: str, enabled: int) -> bool:
+        """
+        True se o SKU deve ser excluído do relatório por ser gratuito,
+        trial, ou seeded pelo tenant (não uma licença efetivamente
+        contratada/paga).
+        """
+        if part_number in FREE_SKUS:
+            return True
+        if enabled >= LIMITE_VOLUME_SEEDED:
+            return True
+        return False
+
     def collect(self) -> list[dict]:
         """Resumo de licenças por SKU — exclui free/trial, adiciona nome amigável e vencimento."""
         data = self._client.get("subscribedSkus")
@@ -107,13 +136,13 @@ class LicensesCollector(BaseCollector):
         results = []
         for sku in skus:
             part_number = sku.get("skuPartNumber", "")
+            enabled = sku.get("prepaidUnits", {}).get("enabled", 0)
 
-            # Exclui licenças gratuitas e trials
-            if part_number in FREE_SKUS:
+            # Exclui licenças gratuitas, trials ou seeded em volume
+            if self._is_free_or_seeded(part_number, enabled):
                 continue
 
             # Exclui licenças com 0 unidades contratadas
-            enabled = sku.get("prepaidUnits", {}).get("enabled", 0)
             if enabled == 0:
                 continue
 
@@ -138,9 +167,9 @@ class LicensesCollector(BaseCollector):
 
     def _build_sku_index(self) -> dict:
         """
-        Mapa {skuId (GUID): {"part": skuPartNumber, "name": nome amigável}}
-        a partir dos SKUs do tenant. Cacheado para não chamar subscribedSkus
-        mais de uma vez por execução.
+        Mapa {skuId (GUID): {"part": skuPartNumber, "name": nome amigável,
+        "enabled": prepaidUnits.enabled}} a partir dos SKUs do tenant.
+        Cacheado para não chamar subscribedSkus mais de uma vez por execução.
         """
         if self._sku_index_cache is not None:
             return self._sku_index_cache
@@ -150,8 +179,9 @@ class LicensesCollector(BaseCollector):
         for sku in data.get("value", []):
             sku_id = sku.get("skuId", "")
             part = sku.get("skuPartNumber", "")
+            enabled = sku.get("prepaidUnits", {}).get("enabled", 0)
             if sku_id:
-                index[sku_id] = {"part": part, "name": SKU_NAMES.get(part, part)}
+                index[sku_id] = {"part": part, "name": SKU_NAMES.get(part, part), "enabled": enabled}
 
         self._sku_index_cache = index
         return index
@@ -202,9 +232,9 @@ class LicensesCollector(BaseCollector):
                 if sku_id in FREE_SKU_IDS:
                     continue
 
-                # free identificado pelo skuPartNumber do tenant
-                part = sku_index.get(sku_id, {}).get("part", "")
-                if part in FREE_SKUS:
+                # free/seeded identificado pelo skuPartNumber ou volume do tenant
+                info = sku_index.get(sku_id, {})
+                if self._is_free_or_seeded(info.get("part", ""), info.get("enabled", 0)):
                     continue
 
                 kept.append(lic)

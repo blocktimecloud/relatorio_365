@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -88,6 +89,39 @@ def _ask_cnpj(prompt="CNPJ:", current=None):
             print(f"❌ {e}")
 
 
+_GUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def _ask_guid(prompt, current=None):
+    """
+    Pergunta um GUID (Tenant ID / Client ID do Azure AD) e revalida até
+    bater no formato esperado (8-4-4-4-12 hex). Existe porque é comum
+    colar o valor junto com o rótulo da tela do Azure (ex: 'Tenant ID -
+    e160359b-...'), o que passa pela validação de "não vazio" mas quebra
+    no banco (a coluna é CHAR(36), exatamente o tamanho de um GUID puro).
+
+    Se `current` for informado, Enter vazio mantém o valor atual (modo update).
+    """
+    while True:
+        raw = questionary.text(prompt, style=cli_style).ask()
+        if not raw:
+            if current is not None:
+                return None  # mantém valor atual
+            print("❌ Este campo é obrigatório.")
+            continue
+        valor = raw.strip()
+        if _GUID_RE.match(valor):
+            return valor.lower()
+        print(
+            "❌ Isso não parece um GUID válido (formato esperado: "
+            "8-4-4-4-12 caracteres hexadecimais, ex: "
+            "e160359b-a7d9-4970-a9aa-0f8198a7b720).\n"
+            "   Confira se não colou um rótulo junto (ex: 'Tenant ID - ...')."
+        )
+
+
 # ── Comandos ─────────────────────────────────────────────────────────────
 
 def cmd_migrate(_args):
@@ -105,8 +139,8 @@ def _gerar_certificado_e_instruir(svc, customer):
     try:
         resultado = svc.gerar_e_salvar_certificado(customer.id)
         caminho = cert_manager.exportar_cer(
-            resultado.cer_pem,
-            nome_base=f"{customer.name}_{customer.id[:8]}",
+            resultado.cer_bytes,
+            f"{customer.name}_{customer.id[:8]}",
         )
         print("\n── Certificado SharePoint gerado ───────────────────")
         print(f"  Arquivo .cer : {caminho}")
@@ -135,8 +169,8 @@ def cmd_add(_args):
         sys.exit(1)
 
     email     = _ask_optional("Email de contato:")
-    tenant_id = _ask("Tenant ID (Azure AD):")
-    client_id = _ask("Client ID:")
+    tenant_id = _ask_guid("Tenant ID (Azure AD):")
+    client_id = _ask_guid("Client ID:")
     secret    = _ask_secret("Client Secret:")
 
     if not all([tenant_id, client_id, secret]):
@@ -208,6 +242,85 @@ def cmd_get(args):
         sys.exit(1)
 
 
+def cmd_cert_generate(args):
+    """
+    Gera (ou regenera) o certificado SharePoint de um cliente já
+    cadastrado. Útil quando a geração falhou no cadastro/import, ou
+    quando o certificado precisa ser renovado.
+
+    Regenerar sobrescreve o certificado anterior no banco (cert_pfx,
+    thumbprint, x5t e validade) — o .cer antigo deixa de ser válido
+    para autenticação a partir do momento em que o novo for o único
+    salvo. Se o cliente já tem um certificado ativo sendo usado em
+    produção, suba o novo .cer no Azure ANTES de remover o antigo lá,
+    para não haver uma janela sem certificado funcionando.
+    """
+    db = next(get_db())
+    svc = CustomerService(db)
+    try:
+        customer = svc.get(args.id)
+    except CustomerNotFoundException as e:
+        print(f"\n❌ {e}")
+        sys.exit(1)
+
+    if customer.cert_pfx and not args.force:
+        print(f"\n⚠️  '{customer.name}' já tem um certificado "
+              f"(thumbprint={customer.cert_thumbprint}, "
+              f"expira em {customer.cert_not_after:%d/%m/%Y}).")
+        if not _confirm("Gerar um novo certificado (substitui o atual)?"):
+            print("Cancelado.")
+            return
+
+    _gerar_certificado_e_instruir(svc, customer)
+
+
+def cmd_cert_check(args):
+    """Lista clientes sem certificado e os com certificado expirando."""
+    from core import cert_manager
+
+    db = next(get_db())
+    svc = CustomerService(db)
+    customers = svc.list_active()
+
+    sem_cert = [c for c in customers if not c.cert_pfx]
+    expirando = []
+    ok = []
+    for c in customers:
+        if not c.cert_pfx:
+            continue
+        dias = cert_manager.dias_para_expirar(c.cert_not_after)
+        if dias is not None and dias <= args.dias:
+            expirando.append((c, dias))
+        else:
+            ok.append(c)
+
+    print(f"\n{'='*60}")
+    print(f"Certificados SharePoint — {len(customers)} cliente(s) ativo(s)")
+    print(f"{'='*60}\n")
+
+    if sem_cert:
+        print(f"❌ Sem certificado ({len(sem_cert)}):")
+        for c in sem_cert:
+            print(f"   {c.name} (id={c.id})")
+        print()
+
+    if expirando:
+        print(f"⚠️  Expirando em até {args.dias} dia(s) ({len(expirando)}):")
+        for c, dias in sorted(expirando, key=lambda t: t[1]):
+            urgencia = "JÁ EXPIRADO" if dias < 0 else f"{dias} dia(s)"
+            print(f"   {c.name} (id={c.id}) — {urgencia}")
+        print()
+
+    if ok:
+        print(f"✅ OK ({len(ok)}):")
+        for c in ok:
+            dias = cert_manager.dias_para_expirar(c.cert_not_after)
+            print(f"   {c.name} — expira em {c.cert_not_after:%d/%m/%Y} ({dias} dias)")
+
+    if not sem_cert and not expirando:
+        print("Nenhuma ação necessária.")
+
+
 def cmd_update(args):
     db = next(get_db())
     svc = CustomerService(db)
@@ -240,15 +353,15 @@ def cmd_update(args):
         style=cli_style,
     ).ask() or None
 
-    tenant_id = questionary.text(
-        f"Tenant ID [{customer.credentials.tenant_id}]:",
-        style=cli_style,
-    ).ask() or None
+    tenant_id = _ask_guid(
+        f"Tenant ID [{customer.credentials.tenant_id}] (Enter para manter):",
+        current=customer.credentials.tenant_id,
+    )
 
-    client_id = questionary.text(
-        f"Client ID [{customer.credentials.client_id}]:",
-        style=cli_style,
-    ).ask() or None
+    client_id = _ask_guid(
+        f"Client ID [{customer.credentials.client_id}] (Enter para manter):",
+        current=customer.credentials.client_id,
+    )
 
     rotate = _confirm("Deseja trocar o Client Secret?")
     secret = _ask_secret("Novo Client Secret:") if rotate else None
@@ -425,6 +538,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_get.add_argument("id")
     p_get.add_argument("--show-secret", action="store_true")
 
+    p_certgen = sub.add_parser("cert-generate",
+                                help="Gerar/regenerar certificado SharePoint de um cliente")
+    p_certgen.add_argument("id")
+    p_certgen.add_argument("--force", action="store_true",
+                            help="Não pedir confirmação se já existir um certificado")
+
+    p_certchk = sub.add_parser("cert-check",
+                                help="Listar clientes sem certificado ou com certificado expirando")
+    p_certchk.add_argument("--dias", type=int, default=30,
+                            help="Alertar certificados que expiram em até N dias (padrão: 30)")
+
     p_upd = sub.add_parser("update", help="Atualizar dados do cliente")
     p_upd.add_argument("id")
 
@@ -457,6 +581,8 @@ def main():
         "add":     cmd_add,
         "list":    cmd_list,
         "get":     cmd_get,
+        "cert-generate": cmd_cert_generate,
+        "cert-check":    cmd_cert_check,
         "update":  cmd_update,
         "delete":  cmd_delete,
         "import":  cmd_import,

@@ -84,3 +84,26 @@ class CustomerRepository:
             raise CustomerNotFoundException(customer_id)
         row.active = False
         self._db.commit()
+
+    def salvar_certificado(
+        self,
+        customer_id: str,
+        cert_pfx: str,
+        cert_thumbprint: str,
+        cert_x5t: str,
+        cert_not_after,
+    ) -> None:
+        """
+        Grava/atualiza o certificado SharePoint do cliente (campos
+        cert_pfx/cert_thumbprint/cert_x5t/cert_not_after). Usado tanto
+        na geração inicial (cadastro) quanto na renovação — neste último
+        caso, simplesmente sobrescreve os valores atuais.
+        """
+        row = self._db.query(CustomerModel).filter_by(id=customer_id).first()
+        if not row:
+            raise CustomerNotFoundException(customer_id)
+        row.cert_pfx = cert_pfx
+        row.cert_thumbprint = cert_thumbprint
+        row.cert_x5t = cert_x5t
+        row.cert_not_after = cert_not_after
+        self._db.commit()

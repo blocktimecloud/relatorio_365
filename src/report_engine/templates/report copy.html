@@ -238,8 +238,27 @@
 {% set fwd_ativos = forwarding | selectattr("forwardingSmtpAddress") | list | length %}
 
 {% set sp_used  = sharepoint_storage | sum(attribute='used_gb') | round(2) %}
-{% set sp_total = sharepoint_storage | sum(attribute='total_gb') | round(2) %}
-{% if sp_total > 0 %}{% set sp_pct = ((sp_used / sp_total) * 100) | round(0) | int %}{% else %}{% set sp_pct = 0 %}{% endif %}
+{% set sp_total = (sharepoint_storage | map(attribute='total_gb') | max | round(2)) if sharepoint_storage else 0 %}
+{% if sp_used >= 1024 %}
+    {% set sp_used_fmt = "%.1f TB"|format(sp_used / 1024) %}
+{% else %}
+    {% set sp_used_fmt = "%.1f GB"|format(sp_used) %}
+{% endif %}
+
+{% if sp_total >= 1024 %}
+    {% set sp_total_fmt = "%.1f TB"|format(sp_total / 1024) %}
+{% else %}
+    {% set sp_total_fmt = "%.1f GB"|format(sp_total) %}
+{% endif %}
+
+{% if sp_total > 0 %}
+    {% set sp_pct_real = ((sp_used / sp_total) * 100) | round(2) %}
+    {% set sp_pct = sp_pct_real | round(0) | int %}
+{% else %}
+    {% set sp_pct_real = 0 %}
+    {% set sp_pct = 0 %}
+{% endif %}
+
 
 {# Score ponderado #}
 {% set s_mfa = mfa_pct %}
@@ -497,28 +516,65 @@
   </div>
 
   <!-- ── Storage SharePoint ── -->
-  <div class="dash-card">
-    <div class="dash-card-header">[SP]    Storage SharePoint</div>
+<div class="dash-card">
+    <div class="dash-card-header">[SP] Storage SharePoint</div>
+
     <div class="dash-row">
-      <span class="dash-lbl">Utilizado</span>
-      <span class="dash-val {% if sp_pct <= 70 %}ok{% elif sp_pct <= 85 %}warn{% else %}crit{% endif %}">{{ "%.2f"|format(sp_used) }} GB</span>
+        <span class="dash-lbl">Utilizado</span>
+        <span class="dash-val {% if sp_pct <= 70 %}ok{% elif sp_pct <= 85 %}warn{% else %}crit{% endif %}">
+            {{ sp_used_fmt }}
+        </span>
     </div>
+
     <div class="dash-row">
-      <span class="dash-lbl">Total disponível</span>
-      <span class="dash-val">{{ "%.2f"|format(sp_total) }} GB</span>
+        <span class="dash-lbl">Total disponível</span>
+        <span class="dash-val">
+            {{ sp_total_fmt }}
+        </span>
     </div>
-    <!-- barra SVG dupla (used vs free) -->
-    <svg width="100%" height="14" style="margin-top:4px;" viewBox="0 0 100 14" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="0" y="2" width="100" height="10" rx="5" fill="#e0e0e0"/>
-      <rect x="0" y="2" width="{{ [sp_pct, 100] | min }}" height="10" rx="5"
-            fill="{% if sp_pct <= 70 %}#1a7a1a{% elif sp_pct <= 85 %}#d4830a{% else %}#cc0000{% endif %}"/>
+
+    <!-- Barra de utilização -->
+    <svg width="100%"
+         height="14"
+         style="margin-top:4px;"
+         viewBox="0 0 100 14"
+         preserveAspectRatio="none"
+         xmlns="http://www.w3.org/2000/svg">
+
+        <rect x="0"
+              y="2"
+              width="100"
+              height="10"
+              rx="5"
+              fill="#e0e0e0"/>
+
+        <rect x="0"
+              y="2"
+              width="{{ [sp_pct_real, 100] | min }}"
+              height="10"
+              rx="5"
+              fill="{% if sp_pct <= 70 %}#1a7a1a{% elif sp_pct <= 85 %}#d4830a{% else %}#cc0000{% endif %}"/>
     </svg>
-    <div style="font-size:7pt; color:#666; text-align:right; margin-top:1px;">{{ sp_pct }}% utilizado</div>
-    {% if sp_pct > 85 %}<div class="dash-alert crit">(X) Storage acima de 85%. Expandir urgente.</div>
-    {% elif sp_pct > 70 %}<div class="dash-alert warn">(!) Uso acima de 70%. Monitorar crescimento.</div>
-    {% else %}<div class="dash-alert ok">(OK) Storage com boa margem disponível.</div>{% endif %}
-  </div>
-  <!-- ── Card: Chamados abertos ── -->
+
+    <div style="font-size:7pt; color:#666; text-align:right; margin-top:1px;">
+        {{ "%.2f"|format(sp_pct_real) }}% utilizado
+    </div>
+
+    {% if sp_pct > 85 %}
+        <div class="dash-alert crit">
+            (X) Storage acima de 85%. Expandir urgente.
+        </div>
+    {% elif sp_pct > 70 %}
+        <div class="dash-alert warn">
+            (!) Uso acima de 70%. Monitorar crescimento.
+        </div>
+    {% else %}
+        <div class="dash-alert ok">
+            (OK) Storage com boa margem disponível.
+        </div>
+    {% endif %}
+</div>
+  <!-- ── Card: Chamados abertos maestro ── -->
   <div class="dash-card">
     <div class="dash-card-header">[CHAMADOS] CHAMADOS ABERTOS NO DESK</div>
 
@@ -739,7 +795,7 @@
 <hr class="divider">
 <p style="font-size:8.5pt; font-weight:bold; margin: 6px 0;">
   Armazenamento total utilizado:
-  {{ "%.2f GB" | format(sharepoint_storage | sum(attribute='used_gb')) }}
+  {{ "%.0f GB" | format(sharepoint_storage | sum(attribute='used_gb')) }}
 </p>
 <table>
   <thead><tr><th>Title</th><th>URL</th><th>UsageCurrent</th></tr></thead>
