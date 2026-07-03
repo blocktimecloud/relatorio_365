@@ -52,6 +52,14 @@ SKU_NAMES = {
     "VISIOONLINE_PLAN1":               "Visio Online P1",
     "WIN_DEF_ATP":                     "Microsoft Defender para Endpoint",
     "YAMMER_ENTERPRISE":               "Yammer Enterprise",
+
+    # Adicionados -- confirmados na tabela oficial da Microsoft
+    # (Product names and service plan identifiers for licensing) ou em
+    # fontes técnicas confiáveis. Ver conversa de suporte para as fontes.
+    "SPE_E3":                          "Microsoft 365 E3",
+    "Microsoft_365_Copilot":           "Copilot for Microsoft 365",
+    "CPC_E_8C_32GB_512GB":             "Windows 365 Enterprise 8 vCPU, 32 GB, 512 GB",
+    "POWERAUTOMATE_ATTENDED_RPA":      "Power Automate per user with attended RPA",
 }
 
 # Fallback por skuId (GUID) — para licenças que não aparecem em subscribedSkus
@@ -103,6 +111,26 @@ LIMITE_VOLUME_SEEDED = 1000
 GRAPH_BETA_URL = "https://graph.microsoft.com/beta"
 
 
+def _resolve_friendly_name(part_number: str) -> str:
+    """
+    Resolve o nome amigável de um SKU: usa o mapeamento conhecido
+    (SKU_NAMES) quando existe; caso contrário, cai num fallback de
+    FORMATAÇÃO (troca "_" por espaço) em vez de mostrar o skuPartNumber
+    cru com underscore. Não inventa nome comercial -- só reformata.
+
+    Muitos skuPartNumber mais novos da Microsoft já usam "_" como
+    separador de palavra com capitalização correta (ex:
+    "Microsoft_365_Copilot" -> "Microsoft 365 Copilot"), então essa troca
+    sozinha já resolve a maioria dos casos sem mapeamento cadastrado.
+    """
+    known = SKU_NAMES.get(part_number)
+    if known:
+        return known
+    if not part_number:
+        return part_number
+    return part_number.replace("_", " ").strip()
+
+
 class LicensesCollector(BaseCollector):
     """
     Coleta licenças do tenant.
@@ -150,8 +178,9 @@ class LicensesCollector(BaseCollector):
             if sku.get("capabilityStatus") == "Deleted":
                 continue
 
-            # Nome amigável — usa mapeamento ou skuPartNumber como fallback
-            friendly_name = SKU_NAMES.get(part_number, part_number)
+            # Nome amigável — usa mapeamento conhecido, ou formata o
+            # skuPartNumber (troca "_" por espaço) como fallback
+            friendly_name = _resolve_friendly_name(part_number)
 
             # Data de vencimento via beta
             sku_id = sku.get("skuId", "")
@@ -181,7 +210,7 @@ class LicensesCollector(BaseCollector):
             part = sku.get("skuPartNumber", "")
             enabled = sku.get("prepaidUnits", {}).get("enabled", 0)
             if sku_id:
-                index[sku_id] = {"part": part, "name": SKU_NAMES.get(part, part), "enabled": enabled}
+                index[sku_id] = {"part": part, "name": _resolve_friendly_name(part), "enabled": enabled}
 
         self._sku_index_cache = index
         return index

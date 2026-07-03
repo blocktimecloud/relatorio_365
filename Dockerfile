@@ -31,7 +31,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         shared-mime-info \
         fonts-dejavu-core \
         fonts-liberation \
+        wget \
+        ca-certificates \
+    && wget -q https://github.com/PowerShell/PowerShell/releases/download/v7.6.3/powershell_7.6.3-1.deb_amd64.deb \
+        -O powershell.deb \
+    && dpkg -i powershell.deb || true \
+    && apt-get install -y -f \
+    && rm powershell.deb \
     && rm -rf /var/lib/apt/lists/*
+
+# Módulo do Exchange Online, usado pelo NativeForwardingCollector para ler
+# o encaminhamento nativo de caixa (ForwardingSmtpAddress/ForwardingAddress),
+# dado que a Graph API não expõe.
+RUN pwsh -NoProfile -Command \
+    "Install-Module -Name ExchangeOnlineManagement -Force -Scope AllUsers -Repository PSGallery"
+
+# Falha o build cedo se o módulo não carregar, em vez de só descobrir isso
+# em produção na primeira execução do collector.
+RUN pwsh -NoProfile -Command \
+    "Import-Module ExchangeOnlineManagement -ErrorAction Stop; Write-Host 'ExchangeOnlineManagement OK'"
 
 # Copia o ambiente virtual
 COPY --from=builder /opt/venv /opt/venv

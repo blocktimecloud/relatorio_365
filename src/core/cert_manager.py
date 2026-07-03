@@ -151,6 +151,27 @@ def carregar_pfx(pfx_cifrado: str) -> tuple:
     return chave_privada, certificado
 
 
+def obter_pfx_bytes(pfx_cifrado: str) -> bytes:
+    """
+    Decifra o .pfx guardado no banco e devolve os bytes crus do arquivo
+    original (sem reserializar via pkcs12). Usado por integrações que
+    precisam do .pfx como ARQUIVO em disco -- caso do Exchange Online
+    PowerShell (Connect-ExchangeOnline -CertificateFilePath), que não
+    aceita o certificado como objeto Python/chave PEM como a MSAL aceita.
+
+    Como o .pfx foi gerado com NoEncryption() (a proteção é só a camada
+    Fernet), o arquivo resultante não tem senha própria -- ao usá-lo,
+    passe uma SecureString vazia para -CertificatePassword.
+    """
+    try:
+        pfx_b64 = decrypt(pfx_cifrado)
+        return base64.b64decode(pfx_b64)
+    except Exception as exc:
+        raise CertificateException(
+            "Falha ao decifrar o certificado. Verifique a SECRET_KEY."
+        ) from exc
+
+
 def obter_chave_privada_pem(pfx_cifrado: str) -> str:
     """
     Decifra o .pfx e devolve a chave privada em PEM (PKCS8, sem senha) —
