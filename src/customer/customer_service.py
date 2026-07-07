@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from customer.models import Customer, CustomerCredentials
 from customer.customer_repository import CustomerRepository
 from core.security import encrypt
+from core.exceptions.customer import CustomerAlreadyExistsException
 from core.logging.logger import logger
 
 
@@ -29,11 +30,24 @@ class CustomerService:
         recipient_name:  str | None = None,
         sharepoint_name: str | None = None,
     ) -> Customer:
+        # Checagem real de duplicata -- por CNPJ, a chave de negócio.
+        # O `exists(customer.id)` dentro de repo.add() NUNCA pega duplicata,
+        # porque o id é um uuid4 gerado abaixo, sempre novo por definição.
+        cnpj_limpo = cnpj.strip() if cnpj else None
+        if cnpj_limpo:
+            existente = self._repo.get_by_cnpj(cnpj_limpo)
+            if existente:
+                logger.warning(
+                    f"Tentativa de criar cliente duplicado: CNPJ {cnpj_limpo} "
+                    f"já pertence a '{existente.name}' (id={existente.id})"
+                )
+                raise CustomerAlreadyExistsException(cnpj_limpo)
+
         customer = Customer(
             id=str(uuid.uuid4()),
             name=name.strip(),
             razao_social=razao_social.strip() if razao_social else None,
-            cnpj=cnpj.strip() if cnpj else None,
+            cnpj=cnpj_limpo,
             contact_email=contact_email.strip() if contact_email else None,
             active=True,
             created_at=datetime.now(timezone.utc),

@@ -12,9 +12,20 @@ from report_engine.report_service import ReportService
 def main():
     initialize()
 
+    # A sessão de banco só é necessária para buscar a lista de clientes --
+    # generate_for_customer() não toca no banco (usa GraphClient/
+    # SharePointClient/ExchangeOnlineClient, autenticados por credencial/
+    # certificado). Sem fechar aqui, a conexão MySQL ficava aberta e ociosa
+    # durante todo o loop (que pode passar de 30-40min com dezenas de
+    # clientes, cada um chamando Connect-ExchangeOnline via pwsh) --
+    # tempo suficiente para o servidor ou a rede derrubar a conexão por
+    # trás, causando "MySQL server has gone away" mais adiante.
     db = next(get_db())
-    svc = CustomerService(db)
-    customers = svc.list_active()
+    try:
+        svc = CustomerService(db)
+        customers = svc.list_active()
+    finally:
+        db.close()
 
     if not customers:
         print("Nenhum cliente ativo encontrado no banco de dados.")
