@@ -70,6 +70,8 @@ class CustomerRepository:
         if not row:
             raise CustomerNotFoundException(customer.id)
         row.name            = customer.name
+        row.razao_social    = customer.razao_social
+        row.cnpj            = customer.cnpj
         row.contact_email   = customer.contact_email
         row.active          = customer.active
         row.tenant_id       = customer.credentials.tenant_id
