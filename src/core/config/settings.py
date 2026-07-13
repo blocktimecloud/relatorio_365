@@ -30,13 +30,13 @@ class Settings(BaseSettings):
     smtp_sender_email: str  = ""
     smtp_use_tls:      bool = True
     smtp_send_enabled: bool = True
+    smtp_cc_email:     str | None = None
 
     maestro_enabled: bool = False
     maestro_mfa_url:   str = ""
     maestro_mfa_token: str = ""
     maestro_licenca_url:   str = ""
     maestro_licenca_token: str = ""
-    
     maestro_admin_email: str = ""
 
     @field_validator("environment")
@@ -47,14 +47,6 @@ class Settings(BaseSettings):
             raise ValueError(f"environment deve ser um de: {allowed}")
         return v
 
-#    @property
-#    def database_url(self) -> str:
-#        return (
-#            f"mysql+pymysql://{self.db_user}:{self.db_password}"
-#            f"@{self.db_host}:{self.db_port}/{self.db_name}"
-#            f"?charset=utf8mb4"
-#
-#        )
     @property
     def database_url(self) -> str:
         password = quote_plus(self.db_password)
@@ -63,7 +55,8 @@ class Settings(BaseSettings):
             f"mysql+pymysql://{self.db_user}:{password}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}"
             f"?charset=utf8mb4"
-    )
+        )
+
     @property
     def is_development(self) -> bool:
         return self.environment == "development"
@@ -72,7 +65,7 @@ class Settings(BaseSettings):
     def smtp_configured(self) -> bool:
         """Retorna True se o SMTP está configurado no .env."""
         return bool(self.smtp_user and self.smtp_password)
-    
+
     @property
     def maestro_routes(self) -> dict:
         """Mapa {tipo do achado: (invoke_url, token)}."""

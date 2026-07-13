@@ -402,6 +402,78 @@
       independentemente dos demais indicadores.
     </div>
   </div>
+<!-- ── Objetivo, controle de versão e escopo de teste── -->
+  <div class="dash-card" style="flex:1 1 100%; background:var(--panel);">
+    <div class="dash-card-header">[INFO] Controle de Versão, Objetivo e Escopo</div>
+
+    <!-- Controle de Versão -->
+    <div style="font-size:8pt; font-weight:700; color:var(--navy); margin-top:6px;">Controle de Versão</div>
+    <table style="width:100%; border-collapse:collapse; font-size:7pt; margin-top:3px;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:14%; color:#fff;">Data</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:10%; color:#fff;">Versão</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:20%; color:#fff;">Autor(es)</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:56%; color:#fff;">Informações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:5px 8px; color:var(--muted);">{{ generated_at }}</td>
+          <td style="padding:5px 8px; color:var(--muted);">1.0</td>
+          <td style="padding:5px 8px; color:var(--muted);">Blocktime Tecnologia</td>
+          <td style="padding:5px 8px; color:var(--muted);">
+            Relatório mensal de segurança e conformidade Office 365 referente a
+            <strong>{{ customer.name }}</strong>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Objetivo -->
+    <div style="font-size:8pt; font-weight:700; color:var(--navy); margin-top:10px;">Objetivo</div>
+    <div style="font-size:7pt; color:var(--muted); margin-top:3px; line-height:1.5;">
+      O objetivo deste documento é evidenciar a situação atual de configurações de segurança e
+      conformidade do ambiente Microsoft 365 de <strong>{{ customer.name }}</strong>, dentro do escopo
+      avaliado, permitindo o acompanhamento periódico por parte do Compliance/TI da organização.
+      As conclusões deste relatório refletem as condições encontradas no momento da coleta dos dados,
+      e não necessariamente as condições atuais no momento em que este documento está sendo
+      apresentado ou lido.
+    </div>
+
+    <!-- Escopo de teste -->
+    <div style="font-size:8pt; font-weight:700; color:var(--navy); margin-top:10px;">Escopo de Teste</div>
+    <table style="width:100%; border-collapse:collapse; font-size:7pt; margin-top:3px;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:22%; color:#fff;">Item avaliado</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:78%; color:#fff;">O que foi verificado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">MFA</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Status de autenticação multifator por usuário ativo.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">Licenças</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Licenças contratadas, em uso, disponíveis e vencimentos próximos.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">Grupos</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Grupos de distribuição, segurança e Microsoft 365 existentes no tenant.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">SharePoint</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Sites, armazenamento utilizado e cota real contratada do tenant.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; font-weight:700; color:var(--navy-soft);">Encaminhamento de e-mail</td>
+          <td style="padding:5px 8px; color:var(--muted);">Encaminhamento nativo de caixa (Exchange Online), classificado como interno ou externo.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 <div class="dash-grid">
 
   <!-- ── Score Geral (largura total) com gauge SVG ── -->
