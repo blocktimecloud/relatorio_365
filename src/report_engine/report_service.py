@@ -7,7 +7,7 @@ from integrations.smtp import SmtpService
 from collectors.mfa.collector import MFACollector
 from collectors.licenses.collector import LicensesCollector
 from collectors.groups.collector import GroupsCollector
-from collectors.mail_forwarding.collector import MailForwardingCollector
+from collectors.exchange.collector import NativeForwardingCollector
 from collectors.sharepoint.collector import SharePointCollector
 from collectors.sharepoint.quota_collector import SharePointQuotaCollector
 from core.exceptions.sharepoint import SharePointAPIException
@@ -64,7 +64,7 @@ class ReportService:
                 "licenses":           licenses_collector.collect(),
                 "user_licenses":      licenses_collector.collect_user_licenses(),
                 "groups":             GroupsCollector(graph).collect(),
-                "forwarding":         MailForwardingCollector(graph).collect(),
+                "forwarding":         NativeForwardingCollector(customer).collect(),
                 "sharepoint":         sharepoint_collector.collect(),
                 "sharepoint_storage": sharepoint_collector.collect_storage(),
                 "sku_names":          licenses_collector.collect_sku_names(),

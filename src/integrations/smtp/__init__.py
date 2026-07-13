@@ -45,26 +45,32 @@ class SmtpService:
         customer_name:   str,
         pdf_path:        Path,
         generated_at:    str,
+        cc_email=settings.smtp_cc_email,
     ) -> None:
-        """Envia o relatório PDF por email para o destinatário do cliente."""
+        """
+        Envia o relatório PDF por email para o destinatário do cliente.
+
+        `cc_email` é opcional -- se informado, entra em cópia (Cc) e também
+        recebe o email de verdade (o cabeçalho Cc por si só não envia nada,
+        só avisa quem mais recebeu; quem decide quem recebe é o `sendmail`).
+        """
 
         # ── Monta o email ────────────────────────────────────────────────
         msg = MIMEMultipart()
         msg["From"] = formataddr((settings.smtp_sender_name, self._sender))
         msg["To"] = formataddr((recipient_name, recipient_email)) if recipient_name else recipient_email
+        if cc_email:
+            msg["Cc"] = cc_email
         msg["Subject"] = f"Relatório Office 365 — {customer_name} — {generated_at}"
 
         # ── Corpo do email ───────────────────────────────────────────────
-        body = f"""Olá{f', {recipient_name}' if recipient_name else ''},
+        body = f"""Olá {customer_name},
 
-Segue em anexo o relatório de integridade do ambiente Office 365 de {customer_name}, 
-referente à data {generated_at}.
+Você possui um novo relatório de segurança - Microsoft Office 365: {pdf_path.name}.
 
-Em caso de dúvidas ou para agendar uma reunião de apresentação, 
-entre em contato com nossa equipe.
+Caso tenha dúvidas ou encontrar alguma informação divergente, favor comunicar a Blocktime através da nossa equipe de suporte: www.blocktime.help/suporte ou whatsapp: (11)3087-3400.
 
-Atenciosamente,
-{settings.smtp_sender_name}
+Este e-mail é automático, por favor, não responda.
 """
         msg.attach(MIMEText(body, "plain", "utf-8"))
 
@@ -84,11 +90,19 @@ Atenciosamente,
         msg.attach(part)
 
         # ── Envia ────────────────────────────────────────────────────────
+        # O cabeçalho "Cc" no msg é só o que aparece pro destinatário --
+        # quem efetivamente recebe é definido pela lista passada ao
+        # sendmail(), por isso o cc_email precisa entrar aqui também.
+        destinatarios = [recipient_email] + ([cc_email] if cc_email else [])
+
         try:
             smtp = self._connect()
-            smtp.sendmail(self._sender, recipient_email, msg.as_string())
+            smtp.sendmail(self._sender, destinatarios, msg.as_string())
             smtp.quit()
-            logger.info(f"Email enviado para {recipient_email} ({customer_name})")
+            logger.info(
+                f"Email enviado para {recipient_email} ({customer_name})"
+                + (f", cc: {cc_email}" if cc_email else "")
+            )
         except SmtpException:
             raise
         except Exception as e:

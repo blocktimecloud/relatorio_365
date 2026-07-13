@@ -46,6 +46,16 @@ class CustomerRepository:
             .count() > 0
         )
 
+    def get_by_cnpj(self, cnpj: str) -> Customer | None:
+        """
+        Busca cliente por CNPJ (chave de negócio real -- diferente do
+        `id`, que é um UUID gerado na criação e portanto nunca serve
+        para detectar duplicata). Usado pelo CustomerService.create()
+        para bloquear cadastro/import repetido do mesmo CNPJ.
+        """
+        row = self._db.query(CustomerModel).filter_by(cnpj=cnpj).first()
+        return row.to_domain() if row else None
+
     # ── Escrita ──────────────────────────────────────────────────────────
 
     def add(self, customer: Customer) -> None:
@@ -60,6 +70,8 @@ class CustomerRepository:
         if not row:
             raise CustomerNotFoundException(customer.id)
         row.name            = customer.name
+        row.razao_social    = customer.razao_social
+        row.cnpj            = customer.cnpj
         row.contact_email   = customer.contact_email
         row.active          = customer.active
         row.tenant_id       = customer.credentials.tenant_id

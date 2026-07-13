@@ -155,9 +155,9 @@
 
 <!--[if gte mso 9]><xml>
 <mso:CustomDocumentProperties>
-<mso:_dlc_DocId msdt:dt="string">NU5SJ7MYYK4T-382434567-72438</mso:_dlc_DocId>
-<mso:_dlc_DocIdItemGuid msdt:dt="string">569e5058-c6d4-4918-adf5-4a5beb4ee7d1</mso:_dlc_DocIdItemGuid>
-<mso:_dlc_DocIdUrl msdt:dt="string">https://blocktimeit.sharepoint.com/sites/TEC/_layouts/15/DocIdRedir.aspx?ID=NU5SJ7MYYK4T-382434567-72438, NU5SJ7MYYK4T-382434567-72438</mso:_dlc_DocIdUrl>
+<mso:_dlc_DocId msdt:dt="string">NU5SJ7MYYK4T-382434567-77198</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">7b47837b-fbae-4847-98e2-10c82ff11ccd</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://blocktimeit.sharepoint.com/sites/TEC/_layouts/15/DocIdRedir.aspx?ID=NU5SJ7MYYK4T-382434567-77198, NU5SJ7MYYK4T-382434567-77198</mso:_dlc_DocIdUrl>
 </mso:CustomDocumentProperties>
 </xml><![endif]-->
 </head>
@@ -257,9 +257,15 @@
 {% set lic_livres = lic_total - lic_usadas %}
 {% if lic_total > 0 %}{% set lic_pct = ((lic_usadas / lic_total) * 100) | round(0) | int %}{% else %}{% set lic_pct = 0 %}{% endif %}
 
-{% set fwd_total  = forwarding | length %}
-{% set fwd_ativos = forwarding | selectattr("forwardingSmtpAddress") | list | length %}
+{% set fwd_total     = forwarding | length %}
+{% set fwd_ativos    = forwarding | selectattr("ativo") | list %}
+{% set fwd_externos  = fwd_ativos | selectattr("interno", "equalto", false) | list %}
+{% set fwd_internos  = fwd_ativos | selectattr("interno", "equalto", true)  | list %}
+{% set fwd_ativos_count = fwd_ativos | length %}
+{% set fwd_ext_count = fwd_externos | length %}
+{% set fwd_int_count = fwd_internos | length %}
 
+{% if fwd_total > 0 %}{% set s_fwd = (((fwd_total - fwd_ext_count) / fwd_total) * 100) | round(0) | int %}{% else %}{% set s_fwd = 100 %}{% endif %}
 {# Storage do tenant: prioriza a cota REAL (via certificado/StorageQuotas),
    que é mais precisa tanto no total quanto no usado. Se o cliente ainda
    não tiver certificado configurado, ou a chamada tiver falhado nesta
@@ -296,7 +302,6 @@
 {# Score ponderado #}
 {% set s_mfa = mfa_pct %}
 {% if lic_pct <= 80 %}{% set s_lic = 100 %}{% elif lic_pct <= 95 %}{% set s_lic = 60 %}{% else %}{% set s_lic = 20 %}{% endif %}
-{% if fwd_total > 0 %}{% set s_fwd = (((fwd_total - fwd_ativos) / fwd_total) * 100) | round(0) | int %}{% else %}{% set s_fwd = 100 %}{% endif %}
 {% if sp_pct <= 70 %}{% set s_sp = 100 %}{% elif sp_pct <= 85 %}{% set s_sp = 60 %}{% else %}{% set s_sp = 20 %}{% endif %}
 
 {# Score base (média ponderada) #}
@@ -306,7 +311,7 @@
 {% set caps = [100] %}
 {% if mfa_pct < 70 %}{% set _ = caps.append(49) %}
 {% elif mfa_pct < 90 %}{% set _ = caps.append(79) %}{% endif %}
-{% if fwd_ativos > 0 %}{% set _ = caps.append(49) %}{% endif %}
+{% if fwd_ext_count > 0 %}{% set _ = caps.append(49) %}{% endif %}
 
 {# Score final = menor entre a média e o teto mais restritivo #}
 {% set score = [score_base, caps | min] | min %}
@@ -321,7 +326,7 @@
 {% set bar_mfa = mfa_pct %}
 {% set bar_lic = lic_pct %}
 {% set bar_sp  = sp_pct %}
-{% if fwd_total > 0 %}{% set bar_fwd = ((fwd_ativos / fwd_total) * 100) | round(0) | int %}{% else %}{% set bar_fwd = 0 %}{% endif %}
+{% if fwd_total > 0 %}{% set bar_fwd = ((fwd_ext_count / fwd_total) * 100) | round(0) | int %}{% else %}{% set bar_fwd = 0 %}{% endif %}
 <div class="dash-page">
 
 <!-- cabeçalho repetido -->
@@ -396,6 +401,78 @@
       um ambiente com MFA insuficiente ou encaminhamentos ativos não é classificado como "bom estado",
       independentemente dos demais indicadores.
     </div>
+  </div>
+<!-- ── Objetivo, controle de versão e escopo de teste── -->
+  <div class="dash-card" style="flex:1 1 100%; background:var(--panel);">
+    <div class="dash-card-header">[INFO] Controle de Versão, Objetivo e Escopo</div>
+
+    <!-- Controle de Versão -->
+    <div style="font-size:8pt; font-weight:700; color:var(--navy); margin-top:6px;">Controle de Versão</div>
+    <table style="width:100%; border-collapse:collapse; font-size:7pt; margin-top:3px;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:14%; color:#fff;">Data</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:10%; color:#fff;">Versão</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:20%; color:#fff;">Autor(es)</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:56%; color:#fff;">Informações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:5px 8px; color:var(--muted);">{{ generated_at }}</td>
+          <td style="padding:5px 8px; color:var(--muted);">1.0</td>
+          <td style="padding:5px 8px; color:var(--muted);">Blocktime Tecnologia</td>
+          <td style="padding:5px 8px; color:var(--muted);">
+            Relatório mensal de segurança e conformidade Office 365 referente a
+            <strong>{{ customer.name }}</strong>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Objetivo -->
+    <div style="font-size:8pt; font-weight:700; color:var(--navy); margin-top:10px;">Objetivo</div>
+    <div style="font-size:7pt; color:var(--muted); margin-top:3px; line-height:1.5;">
+      O objetivo deste documento é evidenciar a situação atual de configurações de segurança e
+      conformidade do ambiente Microsoft 365 de <strong>{{ customer.name }}</strong>, dentro do escopo
+      avaliado, permitindo o acompanhamento periódico por parte do Compliance/TI da organização.
+      As conclusões deste relatório refletem as condições encontradas no momento da coleta dos dados,
+      e não necessariamente as condições atuais no momento em que este documento está sendo
+      apresentado ou lido.
+    </div>
+
+    <!-- Escopo de teste -->
+    <div style="font-size:8pt; font-weight:700; color:var(--navy); margin-top:10px;">Escopo de Teste</div>
+    <table style="width:100%; border-collapse:collapse; font-size:7pt; margin-top:3px;">
+      <thead>
+        <tr>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:22%; color:#fff;">Item avaliado</th>
+          <th style="text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); width:78%; color:#fff;">O que foi verificado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">MFA</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Status de autenticação multifator por usuário ativo.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">Licenças</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Licenças contratadas, em uso, disponíveis e vencimentos próximos.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">Grupos</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Grupos de distribuição, segurança e Microsoft 365 existentes no tenant.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); font-weight:700; color:var(--navy-soft);">SharePoint</td>
+          <td style="padding:5px 8px; border-bottom:1px solid var(--line-soft); color:var(--muted);">Sites, armazenamento utilizado e cota real contratada do tenant.</td>
+        </tr>
+        <tr>
+          <td style="padding:5px 8px; font-weight:700; color:var(--navy-soft);">Encaminhamento de e-mail</td>
+          <td style="padding:5px 8px; color:var(--muted);">Encaminhamento nativo de caixa (Exchange Online), classificado como interno ou externo.</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 <div class="dash-grid">
 
@@ -513,36 +590,39 @@
       <span class="dash-val">{{ "{:,}".format(fwd_total) | replace(",", ".") }}</span>
     </div>
     <div class="dash-row">
-      <span class="dash-lbl">Com encaminhamento ativo</span>
-      <span class="dash-val {% if fwd_ativos == 0 %}ok{% elif fwd_ativos <= 3 %}warn{% else %}crit{% endif %}">{{ "{:,}".format(fwd_ativos) | replace(",", ".") }}</span>
+      <span class="dash-lbl">Encaminhamentos internos ativos</span>
+      <span class="dash-val">{{ "{:,}".format(fwd_int_count) | replace(",", ".") }}</span>
     </div>
-    <!-- mini gráfico de rosca SVG -->
-    {% if fwd_total > 0 %}
-    {% set fwd_pct_safe = ((fwd_ativos / fwd_total) * 100) | round(0) | int %}
-    <svg width="50" height="50" viewBox="0 0 50 50" style="margin-top:4px;" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="25" cy="25" r="18" fill="none" stroke="#e0e0e0" stroke-width="7"/>
-      <circle cx="25" cy="25" r="18" fill="none"
-              stroke="{% if fwd_ativos == 0 %}#1F7A4D{% elif fwd_ativos <= 3 %}#D4830A{% else %}#B5362B{% endif %}"
-              stroke-width="7"
-              stroke-dasharray="{{ ((fwd_pct_safe / 100) * 113) | round(1) }} 113"
-              stroke-dashoffset="28.25"
-              transform="rotate(-90 25 25)"/>
-      <text x="25" y="29" text-anchor="middle" font-family="Arial" font-size="9" font-weight="bold"
-            fill="{% if fwd_ativos == 0 %}#1F7A4D{% elif fwd_ativos <= 3 %}#D4830A{% else %}#B5362B{% endif %}">{{ fwd_pct_safe }}%</text>
+    <div class="dash-row">
+      <span class="dash-lbl">Encaminhamentos externos ativos</span>
+      <span class="dash-val {% if fwd_ext_count == 0 %}ok{% elif fwd_ext_count <= 3 %}warn{% else %}crit{% endif %}">{{ "{:,}".format(fwd_ext_count) | replace(",", ".") }}</span>
+    </div>
+    <div class="dash-row">
+      <span class="dash-lbl">Total de encaminhamentos ativos</span>
+      <span class="dash-val">{{ "{:,}".format(fwd_ativos_count) | replace(",", ".") }}</span>
+    </div>
+
+    <!-- barra: % de usuários com encaminhamento ativo -- quanto MENOR, melhor (verde) -->
+    {% if fwd_total > 0 %}{% set fwd_ativo_pct = ((fwd_ativos_count / fwd_total) * 100) | round(0) | int %}{% else %}{% set fwd_ativo_pct = 0 %}{% endif %}
+    <svg width="100%" height="10" style="margin-top:4px;" viewBox="0 0 100 10" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="1" width="100" height="8" rx="4" fill="#e0e0e0"/>
+      <rect x="0" y="1" width="{{ [fwd_ativo_pct, 100] | min }}" height="8" rx="4"
+            fill="{% if fwd_ativo_pct <= 10 %}#1F7A4D{% elif fwd_ativo_pct <= 25 %}#D4830A{% else %}#B5362B{% endif %}"/>
     </svg>
-    {% endif %}
-    {% if fwd_ativos == 0 %}<div class="dash-alert ok">(OK) Nenhum encaminhamento externo ativo.</div>
-    {% elif fwd_ativos <= 3 %}<div class="dash-alert warn">(!) {{ "{:,}".format(fwd_ativos) | replace(",", ".") }} caixa(s) com encaminhamento ativo. Verificar se são autorizados.</div>
-    {% else %}<div class="dash-alert crit">(X) {{ "{:,}".format(fwd_ativos) | replace(",", ".") }} encaminhamentos ativos. Risco de vazamento.</div>{% endif %}
-    {%- if fwd_ativos > 0 %}
+    <div style="font-size:7pt; color:#5B6473; text-align:right; margin-top:1px;">{{ fwd_ativo_pct }}% dos usuários com encaminhamento</div>
+
+    {% if fwd_ext_count == 0 %}<div class="dash-alert ok">(OK) Nenhum encaminhamento externo ativo.</div>
+    {% elif fwd_ext_count <= 3 %}<div class="dash-alert warn">(!) {{ "{:,}".format(fwd_ext_count) | replace(",", ".") }} encaminhamento(s) externo(s) ativo(s). Verificar se são autorizados.</div>
+    {% else %}<div class="dash-alert crit">(X) {{ "{:,}".format(fwd_ext_count) | replace(",", ".") }} encaminhamentos externos ativos. Risco de vazamento.</div>{% endif %}
+
+    {%- if fwd_int_count > 0 %}
     <div style="margin-top:5px;">
-      <div style="font-size:7pt; font-weight:bold; color:#274A77; margin-bottom:2px;">Caixas com encaminhamento ativo:</div>
-      {%- for row in forwarding %}
-        {%- if row.forwardingSmtpAddress %}
-      <div style="font-size:7pt; color:#7A2620; padding:1px 0;">
-        {{ row.userPrincipalName }} &rarr; {{ row.forwardingSmtpAddress }}
+      <div style="font-size:7pt; font-weight:bold; color:#274A77; margin-bottom:2px;">Encaminhamentos internos (informativo):</div>
+      {%- for row in fwd_internos %}
+      <div style="font-size:7pt; color:#5B6473; padding:1px 0;">
+        {{ row.userPrincipalName }} &rarr; {{ row.forwardingSmtpAddress or row.forwardingAddress }}
+        {%- if row.keepsCopy %} <span style="color:#7A5A20;">(mantém cópia)</span>{% endif %}
       </div>
-        {%- endif %}
       {%- endfor %}
     </div>
     {%- endif %}
@@ -768,19 +848,19 @@
 <hr class="divider">
 
 <table>
-  <thead><tr><th>UserPrincipalName</th><th>ForwardingSmtpAddress</th></tr></thead>
+  <thead><tr><th>Usuário</th><th>Encaminhamento</th></tr></thead>
   <tbody>
     {% for row in forwarding %}
-    <tr>
+    <tr class="{% if row.ativo and not row.interno %}row-crit{% elif row.ativo %}row-warn{% endif %}">
       <td>{{ row.userPrincipalName }}</td>
       <td>
-        {% if row.forwardingSmtpAddress %}
-          {{ row.forwardingSmtpAddress }}
-          <span class="has-forward">
-            Encaminhamento ativo
+        {% if row.ativo %}
+          {{ row.forwardingSmtpAddress or row.forwardingAddress }}
+          <span class="{{ 'has-forward' if not row.interno else 'has-forward-internal' }}">
+            — {{ "Externo" if not row.interno else "Interno" }}{% if row.keepsCopy %}, mantém cópia{% endif %}
           </span>
         {% else %}
-          <span class="no-forward">Não possui encaminhamento ativo</span>
+          <span class="no-forward">Sem encaminhamento ativo</span>
         {% endif %}
       </td>
     </tr>
