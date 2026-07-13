@@ -12,6 +12,12 @@ from core.logging.logger import logger
 _MAX_RETRIES = 5
 _DEFAULT_BACKOFF = 2  # segundos, usado quando não há header Retry-After
 
+# Tentativas em falha de REDE (conexão recusada/inalcançável, timeout) --
+# diferente do throttling acima: aqui a requisição nem chega a completar,
+# então não existe status_code para checar.
+_MAX_NETWORK_RETRIES = 3
+_NETWORK_BACKOFF = 2  # segundos, backoff exponencial
+
 
 class GraphClient:
     def __init__(self, credentials: CustomerCredentials):
@@ -32,6 +38,36 @@ class GraphClient:
     def __exit__(self, *_exc) -> None:
         self.close()
 
+    # ── Requisição com retry de rede ─────────────────────────────────────
+
+    def _send_with_network_retry(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """
+        Executa uma requisição HTTP, retentando em caso de falha de REDE
+        (httpx.TransportError -- cobre ConnectError, ReadTimeout,
+        ConnectTimeout, PoolTimeout, etc.), com backoff exponencial.
+
+        Diferente do retry de status HTTP (429/503) feito em
+        _request_with_retry: aqui o problema é a requisição nem completar
+        (sem resposta, sem status_code para checar) -- por isso é uma
+        camada separada, usada tanto por _acquire_token (POST) quanto
+        por _request_with_retry (GET).
+        """
+        for attempt in range(_MAX_NETWORK_RETRIES):
+            try:
+                return self._http.request(method, url, **kwargs)
+            except httpx.TransportError as exc:
+                if attempt == _MAX_NETWORK_RETRIES - 1:
+                    raise
+                wait = _NETWORK_BACKOFF * (2 ** attempt)
+                logger.warning(
+                    f"Falha de rede em {method} {url} "
+                    f"({exc.__class__.__name__}: {exc}); tentando de novo "
+                    f"em {wait}s (tentativa {attempt + 1}/{_MAX_NETWORK_RETRIES})"
+                )
+                time.sleep(wait)
+
+        raise AssertionError("inatingível -- o loop sempre retorna ou levanta antes")  # pragma: no cover
+
     # ── Autenticação ─────────────────────────────────────────────────────
 
     def _is_token_expired(self) -> bool:
@@ -46,7 +82,7 @@ class GraphClient:
             "client_secret": self._credentials.client_secret,
             "scope": GRAPH_SCOPE,
         }
-        response = self._http.post(url, data=payload)
+        response = self._send_with_network_retry("POST", url, data=payload)
 
         if response.status_code != 200:
             raise GraphAuthenticationException(self._credentials.tenant_id)
@@ -75,9 +111,15 @@ class GraphClient:
         Faz um GET respeitando o throttling do Graph.
         Em 429/503 aguarda o tempo indicado em Retry-After (ou backoff
         exponencial) e tenta novamente, até _MAX_RETRIES vezes.
+
+        Falhas de rede (conexão recusada/inalcançável, timeout) são
+        tratadas à parte por _send_with_network_retry, antes mesmo de
+        chegar a existir uma resposta com status_code para checar aqui.
         """
         for attempt in range(_MAX_RETRIES):
-            response = self._http.get(url, headers=self._headers(), params=params)
+            response = self._send_with_network_retry(
+                "GET", url, headers=self._headers(), params=params
+            )
 
             if response.status_code not in (429, 503):
                 return response
