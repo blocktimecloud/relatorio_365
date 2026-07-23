@@ -247,9 +247,27 @@
   .dash-alert.crit { background:var(--crit-bg); color:var(--crit); border-left:3px solid var(--crit-line); }
 </style>
 {# ── Cálculos dashboard ── #}
-{% set mfa_total    = mfa | length %}
-{% set mfa_ativos   = mfa | selectattr("isMfaRegistered","equalto",true)  | list | length %}
-{% set mfa_inativos = mfa | selectattr("isMfaRegistered","equalto",false) | list | length %}
+{# Separa usuários externos (#EXT#) antes de qualquer cálculo de MFA --
+   contas convidadas (guest) do Azure AD sempre têm "#EXT#" no
+   userPrincipalName. Elas não contam como ativo nem inativo -- só
+   aparecem como contagem à parte ("Usuários EXT"). Isso precisa vir
+   ANTES do resto, porque mfa_pct alimenta s_mfa/caps/score mais abaixo --
+   filtrar só no card deixaria o score de segurança ainda distorcido. #}
+{% set ns = namespace(members=[], ext=[]) %}
+{% for row in mfa %}
+  {% if "#EXT#" in row.userPrincipalName %}
+    {% set ns.ext = ns.ext + [row] %}
+  {% else %}
+    {% set ns.members = ns.members + [row] %}
+  {% endif %}
+{% endfor %}
+{% set mfa_members = ns.members %}
+{% set mfa_ext     = ns.ext %}
+
+{% set mfa_total     = mfa_members | length %}
+{% set mfa_ativos    = mfa_members | selectattr("isMfaRegistered","equalto",true)  | list | length %}
+{% set mfa_inativos  = mfa_members | selectattr("isMfaRegistered","equalto",false) | list | length %}
+{% set mfa_ext_count = mfa_ext | length %}
 {% if mfa_total > 0 %}{% set mfa_pct = ((mfa_ativos / mfa_total) * 100) | round(0) | int %}{% else %}{% set mfa_pct = 0 %}{% endif %}
 
 {% set lic_total  = licenses | sum(attribute='prepaidUnits.enabled') %}
@@ -518,6 +536,10 @@
       <span class="dash-lbl">Sem MFA</span>
       <span class="dash-val {% if mfa_inativos == 0 %}ok{% elif mfa_inativos <= 3 %}warn{% else %}crit{% endif %}">{{ "{:,}".format(mfa_inativos) | replace(",", ".") }}</span>
     </div>
+    <div class="dash-row">
+      <span class="dash-lbl">Usuários EXT</span>
+      <span class="dash-val">{{ "{:,}".format(mfa_ext_count) | replace(",", ".") }}</span>
+    </div>
     <!-- barra SVG -->
     <svg width="100%" height="10" style="margin-top:4px;" viewBox="0 0 100 10" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="0" y="1" width="100" height="8" rx="4" fill="#e0e0e0"/>
@@ -529,7 +551,6 @@
     {% elif mfa_pct >= 80 %}<div class="dash-alert warn">(!) {{ "{:,}".format(mfa_inativos) | replace(",", ".") }} usuário(s) ainda sem MFA.</div>
     {% else %}<div class="dash-alert crit">(X) Alto numero de usuarios sem MFA. Risco elevado.</div>{% endif %}
   </div>
-
   <!-- ── Licenças ── -->
   <div class="dash-card">
     <div class="dash-card-header">[LIC]   Licenças Microsoft 365</div>
@@ -666,7 +687,7 @@
               width="{{ [sp_pct_real, 100] | min }}"
               height="10"
               rx="5"
-              fill="{% if sp_pct <= 70 %}#1F7A4D{% elif sp_pct <= 85 %}#D4830A{% else %}#B5362B{% endif %}"/>
+              fill="{% if sp_pct <= 70 %}#1F7A4D{% elif sp_pct <= 79 %}#D4830A{% else %}#B5362B{% endif %}"/>
     </svg>
 
     <div style="font-size:7pt; color:#5B6473; text-align:right; margin-top:1px;">
@@ -1002,6 +1023,7 @@
 <!-- ═══════════════════════════════════════════════════ -->
 <!-- SEÇÃO 5 — MFA                                      -->
 <!-- ═══════════════════════════════════════════════════ -->
+{% set mfa_inactive = mfa_members | selectattr("isMfaRegistered", "equalto", false) | list %}
 <div class="subsection-title">Usuários com MFA Inativo:</div>
 <table>
   <thead><tr><th>Nome</th><th>Usuário</th><th>Status do MFA</th></tr></thead>
